@@ -1029,12 +1029,16 @@ app.secret_key = os.getenv("SECRET_KEY", "dev_secret_change_me")
 db_url = os.getenv("DATABASE_URL") or os.getenv("MYSQL_URL")
 
 if not db_url:
-    db_url = "mysql+pymysql://root:@localhost/alpukat_db"
+    db_url = "mysql+pymysql://root:@localhost/alpukat_db"  # fallback lokal
+
+# kalau MYSQL_URL dari Railway bentuknya mysql://... ubah ke mysql+pymysql://
+if db_url.startswith("mysql://"):
+    db_url = db_url.replace("mysql://", "mysql+pymysql://", 1)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
-
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
+
 
 class User(db.Model):
     __tablename__ = "users"
