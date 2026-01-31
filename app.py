@@ -1026,7 +1026,13 @@ def detect_avocado(img_bgr, flash_on=False):
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
 app.secret_key = os.getenv("SECRET_KEY", "dev_secret_change_me")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL","mysql+pymysql://root:@localhost/alpukat_db")
+db_url = os.getenv("DATABASE_URL") or os.getenv("MYSQL_URL")
+
+if not db_url:
+    db_url = "mysql+pymysql://root:@localhost/alpukat_db"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
@@ -1047,8 +1053,16 @@ class AvocadoHistory(db.Model):
     ripe_label = db.Column(db.String(20), nullable=False)
     date = db.Column(db.Date, nullable=False)
     
-with app.app_context():
-    db.create_all()
+def init_db():
+    try:
+        with app.app_context():
+            db.create_all()
+        print("[INFO] DB tables ready")
+    except Exception as e:
+        print("[WARN] DB init failed:", e)
+
+init_db()
+
 
 
 @app.before_request
