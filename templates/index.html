@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Deteksi Kematangan Alpukat • SVM</title>
+  <style>
+    :root{
+      --bg:#f3f9ff;
+      --card:#ffffff;
+      --border:#dbeafe;
+      --text:#1e293b;
+      --muted:#64748b;
+      --primary:#3b82f6;
+      --primary2:#22c55e;
+      --ok-bg:#ecfdf5; --ok-border:#86efac; --ok-text:#065f46;
+      --err-bg:#fff1f2; --err-border:#fecdd3; --err-text:#b91c1c;
+      --inf-bg:#eff6ff; --inf-border:#bfdbfe; --inf-text:#1d4ed8;
+      --wrn-bg:#fffbeb; --wrn-border:#fde68a; --wrn-text:#92400e;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header{
+      /* semula: position:sticky; top:0; */
+      position: static;     /* -> sekarang tidak ikut saat scroll */
+      top: auto;
+      background: linear-gradient(90deg,var(--primary),var(--primary2));
+      color:#fff;
+      border-bottom:1px solid var(--border);
+      padding:14px 18px;
+      z-index:10;
+      box-shadow:0 2px 8px rgba(0,0,0,0.1);
+    }
+    .wrap{max-width:1100px;margin:0 auto;padding:14px}
+    .grid{display:grid;gap:14px;grid-template-columns:1fr}
+    @media(min-width:960px){.grid{grid-template-columns:1fr .8fr}}
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:16px;
+      box-shadow:0 4px 12px rgba(59,130,246,0.08);
+    }
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    button{
+      background: linear-gradient(90deg,var(--primary),var(--primary2));
+      border:0;color:white;
+      padding:10px 16px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600;
+      box-shadow:0 4px 10px rgba(59,130,246,0.2);
+      transition:filter .2s;
+    }
+    button:hover{filter:brightness(1.05)}
+    button.sec{background:#e2e8f0;color:#1e293b;box-shadow:none}
+    .stat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+    .pill{
+      background:#f8fafc;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:12px;
+      text-align:center;
+    }
+    .hint{color:var(--muted);font-size:13px}
+    .brand{font-weight:700;font-size:18px}
+    .legend{font-size:13px;color:var(--muted);margin-top:8px}
+    .stage{
+      position:relative;width:100%;border-radius:12px;overflow:hidden;
+      border:1px solid var(--border);background:#000;
+    }
+    .stage video{display:block;width:100%;height:auto}
+    .stage canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+
+    /* FLASH */
+    .flash-wrap{max-width:1100px;margin:10px auto 0;padding:0 14px}
+    .flash{
+      display:flex; align-items:center; gap:10px;
+      padding:10px 14px; border-radius:12px; margin-bottom:10px;
+      border:1px solid; font-size:14px;
+      box-shadow:0 2px 8px rgba(0,0,0,.04); background:#fff;
+    }
+    .flash.ok{background:var(--ok-bg);border-color:var(--ok-border);color:var(--ok-text)}
+    .flash.err{background:var(--err-bg);border-color:var(--err-border);color:var(--err-text)}
+    .flash.info{background:var(--inf-bg);border-color:var(--inf-border);color:var(--inf-text)}
+    .flash.warn{background:var(--wrn-bg);border-color:var(--wrn-border);color:var(--wrn-text)}
+    .flash .x{margin-left:auto;background:transparent;border:0;cursor:pointer;font-weight:700}
+     /* Logout button (kanan pojok) */
+    .actions{ margin-left:auto; } /* paksa ke kanan */
+    .logout-btn{
+      display:inline-flex; align-items:center; gap:8px;
+      background:#ffffff; color:#0ea5e9;
+      padding:8px 16px; border-radius:999px; text-decoration:none; font-weight:700; font-size:14px;
+      box-shadow:0 4px 12px rgba(0,0,0,.12);
+      transition:transform .06s ease, filter .2s ease, box-shadow .2s ease;
+      border:0;
+    }
+
+    button.analysis-on {
+    background: linear-gradient(90deg,#22c55e,#16a34a);
+    color: white;
+}
+
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap row">
+      <div class="brand">🥑 Deteksi Kematangan Alpukat</div>
+      <div class="actions">
+        <nav>
+          <a href="/logout" class="logout-btn" title="Keluar">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M16 17v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path>
+              <path d="M10 12h10m0 0-3-3m3 3-3 3"></path>
+            </svg>
+            Logout
+          </a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- FLASH MESSAGES -->
+  <div class="flash-wrap">
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        {% for cat, msg in msgs %}
+          {% set cls = 'info' %}
+          {% if cat == 'success' %}{% set cls = 'ok' %}
+          {% elif cat == 'error' %}{% set cls = 'err' %}
+          {% elif cat == 'warning' %}{% set cls = 'warn' %}{% endif %}
+          <div class="flash {{ cls }}" role="alert">
+            <span>{{ msg }}</span>
+            <button class="x" onclick="this.parentElement.remove()" aria-label="Tutup">×</button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <div class="wrap grid">
+    <div class="card">
+      <div class="row">
+        <button id="btnStart">▶ Start Camera</button>
+        <button id="btnStop" class="sec">■ Stop</button>
+        <button id="btnFlash" class="sec">🔦 Flash OFF</button>
+        <br>
+         <!-- 🔽 TOMBOL ANALISIS -->
+        <button id="btnAnalysis" class="sec">
+          📊 Mulai Analisis Harian
+        </button>
+        <span class="hint">Mode: kamera belakang</span>
+      </div>
+
+      <div class="stage" style="margin-top:10px">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="ov"></canvas>
+      </div>
+
+      <canvas id="cap" style="display:none"></canvas>
+
+      <div class="stat">
+        <div class="pill">Label: <b id="lbl">—</b></div>
+        <div class="pill">Accuracy: <b id="scr">—</b></div>
+        <div class="pill">Infer: <b id="lat">—</b> ms</div>
+      </div>
+      <div class="legend">Jika tidak terdeteksi, dekatkan objek & pastikan cahaya merata.</div>
+    </div>
+  
+     <!-- CARD GRAFIK (TAMBAHKAN DI SINI) -->
+    <div class="card">
+      <h3>📊 Grafik Kematangan Alpukat Harian</h3>
+      <canvas id="avocadoChart" height="120"></canvas>
+      <p class="hint">Data diperbarui berdasarkan hasil analisis harian</p>
+    </div>
+  </div>  
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SCRIPT GRAFIK (LANGKAH 5) -->
+  <script>
+async function loadAvocadoChart(){
+  const r = await fetch('/api/avocado-history');
+  const j = await r.json();
+  if(!j.ok) return;
+
+  new Chart(document.getElementById('avocadoChart'), {
+    type: 'line',
+    data: {
+      labels: j.labels,
+      datasets: [
+        {
+          label: 'Alpukat Kecil',
+          data: j.kecil,
+          borderColor: '#16a34a',
+          tension: 0.4,
+          pointRadius: 5
+        },
+        {
+          label: 'Alpukat Besar',
+          data: j.besar,
+          borderColor: '#2563eb',
+          tension: 0.4,
+          pointRadius: 5
+        }
+      ]
+    },
+    options: {
+      scales: {
+        y: {
+          min: 0,
+          max: 1,
+          title: { display: true, text: 'Skor Kematangan' }
+        },
+        x: {
+          title: { display: true, text: 'Tanggal Pengamatan' }
+        }
+      }
+    }
+  });
+}
+
+loadAvocadoChart();
+</script>
+
+</body>
+</html>

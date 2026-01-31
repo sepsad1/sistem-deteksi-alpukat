@@ -1,0 +1,5 @@
+cloudflared tunnel --url http://localhost:5000
+
+python app.py --train /path/ke/dataset --test-split 0.2
+
+python train_svm.py dataset --split

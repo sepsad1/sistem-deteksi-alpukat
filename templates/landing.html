@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Deteksi Kematangan Alpukat • SVM</title>
+  <meta name="description" content="Deteksi kematangan alpukat real-time dengan kamera HP. Cepat, stabil, akurat.">
+  <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f3f9ff" media="(prefers-color-scheme: light)">
+  <meta name="color-scheme" content="light dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
+
+  <style>
+    :root{
+      --bg:#f3f9ff;
+      --bg2:#f6fff4;
+      --card:#ffffff;
+      --border:#dbeafe;
+      --text:#0f172a;
+      --muted:#64748b;
+      --primary:#3b82f6;   /* biru */
+      --primary2:#22c55e;  /* hijau */
+      --focus: rgba(59,130,246,.25);
+      --glass: rgba(255,255,255,.65);
+      --shadow: 0 10px 30px rgba(59,130,246,.12);
+    }
+    @media (prefers-color-scheme: dark){
+      :root{ --bg:#0b1220; --bg2:#0f1a2b; --card:#0f172a; --border:#1e293b; --text:#e5eefc; --muted:#94a3b8; --glass:rgba(15,23,42,.7) }
+      body{ background: linear-gradient(120deg,#0b1220,#0f1a2b 40%, #0b1220 90%) }
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(900px 300px at 10% -5%, var(--bg2), transparent 60%),
+        radial-gradient(900px 300px at 110% 0%, var(--bg), transparent 60%),
+        var(--bg);
+      /* aman untuk notch */
+      padding-left: max(0px, env(safe-area-inset-left));
+      padding-right: max(0px, env(safe-area-inset-right));
+      -webkit-tap-highlight-color: transparent;
+    }
+    a{color:inherit}
+    /* Header */
+    header{
+      position:sticky; top:0; z-index:50;
+      backdrop-filter: saturate(1.2) blur(8px);
+      background: linear-gradient(90deg, rgba(59,130,246,.12), rgba(34,197,94,.12));
+      border-bottom:1px solid var(--border);
+      padding-top: max(0px, env(safe-area-inset-top));
+    }
+    .wrap{max-width:1100px;margin:0 auto;padding:14px}
+    .row{display:flex;align-items:center;gap:14px;justify-content:space-between}
+    .brand{
+      display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.2px;
+      background: linear-gradient(90deg,var(--primary),var(--primary2)); -webkit-background-clip:text; background-clip:text; color:transparent;
+    }
+    .logo{
+      width:36px;height:36px;border-radius:10px;
+      background:linear-gradient(135deg,#d9f99d,#bbf7d0);
+      display:grid;place-items:center; box-shadow:0 6px 16px rgba(34,197,94,.25), inset 0 0 0 1px #a7f3d0;
+    }
+    nav{display:flex;gap:10px;align-items:center}
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      padding:10px 16px; border-radius:12px; border:1px solid transparent;
+      text-decoration:none; font-weight:700; letter-spacing:.2px; transition:transform .04s, filter .2s, background .2s, border-color .2s;
+      box-shadow:0 4px 12px rgba(0,0,0,.06);
+      min-height:44px; min-width:44px; touch-action:manipulation;
+    }
+    .btn:hover{filter:brightness(1.04)}
+    .btn:active{transform:translateY(1px)}
+    .btn-ghost{background:var(--card);border-color:var(--border)}
+    .btn-primary{background:linear-gradient(90deg,var(--primary),var(--primary2));color:#fff}
+
+    /* Hero */
+    .hero{
+      padding:48px 16px 28px;
+      position:relative; overflow:hidden;
+    }
+    .hero-grid{display:grid;gap:22px; grid-template-columns:1fr; align-items:center}
+    @media(min-width:980px){ .hero-grid{grid-template-columns:1.05fr .95fr} }
+    .headline{font-size:clamp(24px,3.8vw,46px);line-height:1.1;margin:0 0 12px;font-weight:900}
+    .subtitle{color:var(--muted);font-size:clamp(14px,1.6vw,16px);margin:0 0 18px;max-width:58ch}
+    .cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+    .mini{font-size:12px;color:var(--muted);margin-top:8px}
+    .badge{
+      display:inline-flex;align-items:center;gap:8px;
+      background:var(--glass); padding:8px 12px; border-radius:999px; border:1px solid var(--border);
+      box-shadow:var(--shadow); backdrop-filter: blur(6px);
+      font-weight:700; color:#065f46;
+    }
+
+    /* Mock camera card */
+    .device{
+      position:relative; border-radius:20px; overflow:hidden;
+      border:1px solid var(--border); background: #0b1220; box-shadow: var(--shadow);
+      aspect-ratio: 16/10; min-height:260px;
+      /* ===== PENYESUAIAN PUSAT (INI YANG MEMBENARKAN BAGIAN DILINGKARI) ===== */
+      width:100%;
+      max-width:640px;              /* batas lebar agar proporsional */
+      margin-inline:auto;           /* pusatkan horizontal di semua viewport */
+      display:block;
+    }
+    /* Pastikan kolom kanan grid memusatkan kontennya */
+    .hero-grid > :last-child{ justify-self:center; width:100%; }
+    /* ===================================================================== */
+
+    .device .topbar{
+      position:absolute; inset:10px 10px auto 10px; display:flex; justify-content:space-between; align-items:center;
+      background: rgba(255,255,255,.08); color:#e5eefc; border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:6px 10px; font-size:12px;
+    }
+    .lens{
+      position:absolute; inset:0; background:
+        radial-gradient(600px 260px at 60% 120%, rgba(34,197,94,.16), transparent),
+        radial-gradient(800px 300px at -10% -20%, rgba(59,130,246,.14), transparent);
+    }
+    .bbox{
+      position:absolute; border:2px solid #4ade80; border-radius:8px; box-shadow: 0 0 0 1px rgba(74,222,128,.25);
+      animation: float 3s ease-in-out infinite;
+    }
+    .tag{
+      position:absolute; transform:translateY(-120%); background:rgba(0,0,0,.7); color:#fff; padding:6px 10px; border-radius:8px; font-size:12px;
+      border:1px solid rgba(255,255,255,.18)
+    }
+    @keyframes float{
+      0%{transform:translateY(0)}
+      50%{transform:translateY(-3px)}
+      100%{transform:translateY(0)}
+    }
+
+    /* Sections */
+    section{padding:34px 16px}
+    .grid{display:grid;gap:14px;grid-template-columns:1fr}
+    @media(min-width:980px){ .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))} }
+    .card{
+      background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; box-shadow:var(--shadow);
+    }
+    .feat{display:flex; gap:12px; align-items:flex-start}
+    .icon{
+      flex:0 0 42px; height:42px; border-radius:12px;
+      display:grid; place-items:center; color:#fff;
+      background:linear-gradient(135deg,var(--primary),var(--primary2));
+      box-shadow:0 6px 18px rgba(34,197,94,.22);
+    }
+    .feat h3{margin:0 0 6px; font-size:16px}
+    .feat p{margin:0; color:var(--muted); font-size:14px}
+
+    /* How it works */
+    .steps{counter-reset:step}
+    .step{position:relative;padding-left:46px}
+    .step + .step{margin-top:12px}
+    .step::before{
+      counter-increment:step; content:counter(step);
+      position:absolute; left:0; top:0; width:32px; height:32px; border-radius:10px;
+      display:grid; place-items:center; color:#fff; font-weight:800;
+      background:linear-gradient(135deg,var(--primary),var(--primary2));
+      box-shadow:0 6px 18px rgba(59,130,246,.22);
+    }
+    .step h4{margin:0 0 4px}
+    .step p{margin:0; color:var(--muted)}
+
+    /* Footer */
+    footer{padding:24px 16px; border-top:1px solid var(--border); color:var(--muted)}
+    .foot{display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap}
+
+    /* Small helpers */
+    .hide-sm{display:none}
+    @media(min-width:700px){ .hide-sm{display:inline-flex} }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="wrap row">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="22" height="22" role="img" aria-label="Alpukat">
+            <path d="M32 7c8 0 16 14 16 24 0 10.5-7.2 18-16 18s-16-7.5-16-18C16 21 24 7 32 7z" fill="#22c55e"/>
+            <path d="M32 7c8 0 16 14 16 24 0 10.5-7.2 18-16 18s-16-7.5-16-18C16 21 24 7 32 7z" fill="none" stroke="#15803d" stroke-width="2"/>
+            <circle cx="32" cy="36" r="7.2" fill="#b45309" stroke="#92400e" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <span>Deteksi Kematangan Alpukat</span>
+      </div>
+      <nav>
+        <a class="btn btn-primary" href="/register" aria-label="Daftar akun">Daftar Gratis</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="badge">⚡ Real-time • Stabil • Akurat</span>
+        <h1 class="headline">Cek Kematangan Alpukat <span style="white-space:nowrap;">Dalam Hitungan Detik</span></h1>
+        <p class="subtitle">
+          Arahkan kamera HP ke alpukat, sistem akan mengklasifikasikan <b>Matang</b> atau <b>Belum Matang</b>, termasuk estimasi ukuran.
+          Dirancang untuk cepat, ringan, dan mudah dipakai di lapangan.
+        </p>
+        <div class="cta">
+          <a class="btn btn-primary" href="/login">Mulai Sekarang</a>
+        </div>
+        <div class="mini">Tidak perlu alat tambahan. Cukup kamera smarthphone.</div>
+      </div>
+
+      <!-- mock device -->
+      <div class="device" aria-label="Pratinjau kamera">
+        <div class="topbar">
+          <span>Camera • Back</span>
+          <span>FPS ~30</span>
+        </div>
+        <div class="lens"></div>
+        <div class="bbox" style="left:16%; top:28%; width:48%; height:42%;">
+          <div class="tag">Matang • 0.92</div>
+        </div>
+        <div class="bbox" style="left:62%; top:55%; width:22%; height:18%; border-color:#60a5fa;">
+          <div class="tag" style="background:rgba(15,23,42,.8)">Belum Matang • 0.61</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FITUR -->
+  <section id="fitur">
+    <div class="wrap grid grid-3">
+      <div class="card feat">
+        <div class="icon">⚙️</div>
+        <div>
+          <h3>Cepat & Stabil</h3>
+          <p>Optimisasi pipeline (blur, HSV, mask) dan SVM ringan untuk inference real-time di perangkat biasa.</p>
+        </div>
+      </div>
+      <div class="card feat">
+        <div class="icon">🎯</div>
+        <div>
+          <h3>Akurat</h3>
+          <p>Fusi warna + bentuk + skor model dengan hysteresis anti-flip untuk hasil yang konsisten.</p>
+        </div>
+      </div>
+      <div class="card feat">
+        <div class="icon">🔒</div>
+        <div>
+          <h3>Aman</h3>
+          <p>Autentikasi berbasis database. Password di-hash. Session aman.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="wrap foot">
+      <div>© 2025 • Sistem Deteksi Kematangan Alpukat</div>
+    </div>
+  </footer>
+
+  <script>
+    // Smooth scroll untuk anchor di header
+    document.querySelectorAll('a[href^="#"]').forEach(a=>{
+      a.addEventListener('click', (e)=>{
+        const id = a.getAttribute('href');
+        if(id.length>1){
+          e.preventDefault();
+          document.querySelector(id)?.scrollIntoView({behavior:'smooth', block:'start'});
+        }
+      });
+    });
+    document.addEventListener('touchmove', ()=>{}, {passive:true});
+  </script>
+</body>
+</html>

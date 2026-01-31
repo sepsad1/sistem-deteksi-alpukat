@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login • Deteksi Kematangan Alpukat</title>
+  <style>
+    :root{
+      --bg1:#eaf6ff; --bg2:#f6fff4; --card:#ffffff; --border:#d9e7ff;
+      --text:#2a2a2a; --muted:#6b7280; --primary:#3b82f6; --primary2:#22c55e;
+      --focus: rgba(59,130,246,.25);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+      color:var(--text);
+      background: radial-gradient(1200px 600px at 20% -10%, var(--bg2), transparent 60%),
+                  radial-gradient(1200px 600px at 120% 0%, var(--bg1), transparent 60%),
+                  #f3f9ff; min-height:100dvh;
+    }
+    .wrap{ max-width: 440px; margin: 8vh auto; padding: 16px; }
+    .brand{display:flex; gap:12px; align-items:center; justify-content:center; margin-bottom:16px; user-select:none;}
+    .brand .logo{
+      width:52px; height:52px; border-radius:14px; background: linear-gradient(135deg,#d9f99d,#bbf7d0);
+      display:grid; place-items:center; box-shadow:0 6px 16px rgba(34,197,94,.25), inset 0 0 0 1px #a7f3d0;
+    }
+    .brand h1{font-size:22px; margin:0; line-height:1.2; background:linear-gradient(90deg,var(--primary),var(--primary2));
+      -webkit-background-clip:text; background-clip:text; color:transparent; font-weight:800; letter-spacing:.2px; text-align:center;}
+    .card{background:var(--card); border:1px solid var(--border); border-radius:18px; padding:22px; box-shadow:0 10px 30px rgba(59,130,246,.12); position:relative; overflow:hidden}
+    .card::before{content:""; position:absolute; inset:auto -30% -60% -30%; height:180px; background:radial-gradient(220px 120px at 50% 0%, #e0f2fe 0%, transparent 70%); pointer-events:none;}
+    .subtitle{text-align:center; margin:4px 0 18px; color:var(--muted); font-size:13px}
+    label{display:block; margin:12px 0 6px; font-weight:600}
+    .field{position:relative}
+    .field input{width:100%; padding:12px 12px 12px 42px; border-radius:12px; border:1px solid var(--border); background:#f8fbff; font-size:15px; transition:box-shadow .2s,border-color .2s,background .2s}
+    .field input:focus{outline:none; border-color:var(--primary); box-shadow:0 0 0 4px var(--focus); background:#fff}
+    .icon{position:absolute; left:12px; top:50%; transform:translateY(-50%); width:18px; height:18px; opacity:.65}
+    .btn{width:100%; margin-top:16px; background:linear-gradient(90deg,var(--primary),var(--primary2)); border:0; color:#fff; padding:12px 16px; font-size:16px; font-weight:700; letter-spacing:.2px; border-radius:12px; cursor:pointer; box-shadow:0 6px 16px rgba(59,130,246,.25); transition:transform .04s ease, filter .2s ease}
+    .btn:hover{filter:brightness(1.03)} .btn:active{transform:translateY(1px)}
+    .hint{color:var(--muted); font-size:13px; text-align:center; margin:12px 0 0}
+    .err{background:#fff1f2; border:1px solid #fecdd3; color:#b91c1c; padding:10px 12px; border-radius:12px; margin-bottom:12px; display:none}
+    .ok{background:#ecfdf5; border:1px solid #bbf7d0; color:#065f46; padding:10px 12px; border-radius:12px; margin-bottom:12px; display:none}
+    .footer{margin-top:14px; text-align:center; font-size:12px; color:#8a94a6}
+    a.link{color:#2563eb; font-weight:600; text-decoration:none}
+    a.link:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Brand + Logo -->
+    <div class="brand" aria-label="Logo dan judul aplikasi">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="34" height="34" role="img" aria-label="Alpukat">
+          <path d="M32 7c8 0 16 14 16 24 0 10.5-7.2 18-16 18s-16-7.5-16-18C16 21 24 7 32 7z" fill="#22c55e" />
+          <path d="M27 11c3 0 6 6 6 10 0 3-2 5-4 5s-5-3-5-7c0-4 1-8 3-8z" fill="#bbf7d0" opacity=".9"/>
+          <path d="M32 7c8 0 16 14 16 24 0 10.5-7.2 18-16 18s-16-7.5-16-18C16 21 24 7 32 7z" fill="none" stroke="#15803d" stroke-width="2" />
+          <circle cx="32" cy="36" r="7.2" fill="#b45309" stroke="#92400e" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <h1>Deteksi Kematangan Alpukat</h1>
+    </div>
+
+    <!-- Card Form -->
+    <form class="card" method="post" action="/login" autocomplete="on">
+      <h2 class="mb-2 fw-bold" style="text-align:center;">Sign In</h2>
+
+      <!-- Flash messages -->
+      <div id="ok" class="ok">
+        {% with msgs = get_flashed_messages(category_filter=['success']) %}
+          {% if msgs %}{{ msgs[0] }}{% endif %}
+        {% endwith %}
+      </div>
+      <div id="err" class="err">
+        {% with msgs = get_flashed_messages(category_filter=['error']) %}
+          {% if msgs %}{{ msgs[0] }}{% endif %}
+        {% endwith %}
+      </div>
+
+      <label for="username">Username</label>
+      <div class="field">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5Z" fill="currentColor"/>
+        </svg>
+        <input id="username" name="username" autocomplete="username" required>
+      </div>
+
+      <label for="password">Password</label>
+      <div class="field">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1Zm-6 7v-3h2v3h-2ZM9 7a3 3 0 1 1 6 0v2H9V7Z" fill="currentColor"/>
+        </svg>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+
+      <button class="btn" type="submit">Submit</button>
+
+      <p class="hint">Belum punya akun?
+        <a class="link" href="/register?force=1">Daftar sekarang</a>
+      </p>
+    </form>
+
+    <div class="footer">© 2025 • Sistem Deteksi Kematangan Alpukat</div>
+  </div>
+
+  <script>
+    (function(){
+      const ok=document.getElementById('ok'), err=document.getElementById('err');
+      if(ok && ok.textContent.trim()) ok.style.display='block';
+      if(err && err.textContent.trim()) err.style.display='block';
+    })();
+  </script>
+</body>
+</html>
