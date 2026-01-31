@@ -3,3 +3,10 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+
+dataset/
+dataset_split/
+database/
+instance/
+*.db
+poto Confusion sistem/
